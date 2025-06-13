@@ -1,25 +1,12 @@
-from flask import Flask, request, jsonify
-import os
-import subprocess
-import uuid
+FROM python:3.10-slim
 
-app = Flask(__name__)
+RUN apt-get update && apt-get install -y ffmpeg
 
-@app.route("/trim", methods=["POST"])
-def trim():
-    file = request.files["video"]
-    filename = f"{uuid.uuid4()}.mp4"
-    file.save(filename)
+WORKDIR /app
 
-    output_file = f"trimmed_{filename}"
-    command = [
-        "ffmpeg", "-i", filename,
-        "-af", "silencedetect=n=-30dB:d=0.5",
-        "-f", "null", "-"
-    ]
-    subprocess.run(command)
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
 
-    return jsonify({"message": "Silence detected. Trimming logic not yet implemented."})
+COPY . .
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+CMD ["python", "main.py"]
