@@ -1,25 +1,35 @@
-from flask import Flask, request, jsonify
-import os
+from flask import Flask, request, jsonify, send_file
 import subprocess
-import uuid
+import os
 
 app = Flask(__name__)
 
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({
+        "message": "Welcome to the FFmpeg Silence Trimmer API!",
+        "usage": "POST a video file to /trim using the 'file' field in form-data."
+    })
+
 @app.route("/trim", methods=["POST"])
-def trim():
-    file = request.files["video"]
-    filename = f"{uuid.uuid4()}.mp4"
-    file.save(filename)
+def trim_video():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
 
-    output_file = f"trimmed_{filename}"
+    file = request.files['file']
+    input_path = "input.mp4"
+    output_path = "output_trimmed.mp4"
+    
+    file.save(input_path)
+
     command = [
-        "ffmpeg", "-i", filename,
-        "-af", "silencedetect=n=-30dB:d=0.5",
-        "-f", "null", "-"
+        "ffmpeg", "-i", input_path,
+        "-af", "silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-40dB",
+        "-y", output_path
     ]
-    subprocess.run(command)
 
-    return jsonify({"message": "Silence detected. Trimming logic not yet implemented."})
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    try:
+        subprocess.run(command, check=True)
+        return send_file(output_path, mimetype='video/mp4', as_attachment=True)
+    except subprocess.CalledProcessError as e:
+        return jsonify({"error": str(e)}), 500
