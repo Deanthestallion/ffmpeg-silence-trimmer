@@ -1,17 +1,25 @@
-from flask import Flask
+from flask import Flask, request, jsonify
 import os
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.route('/')
 def home():
-    return "Service is up!"
+    return "Server is live"
 
-# Optional: your other API routes here
-# @app.route("/process", methods=["POST"])
-# def process():
-#     ...
+@app.route('/trim', methods=['POST'])
+def trim_video():
+    if 'video' not in request.files:
+        return jsonify({"error": "No video uploaded"}), 400
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    video = request.files['video']
+    input_path = f"/tmp/{video.filename}"
+    output_path = f"/tmp/trimmed_{video.filename}"
+    
+    video.save(input_path)
+
+    # FFmpeg command to remove silence (example)
+    os.system(f"ffmpeg -i {input_path} -af silenceremove=1:0:-50dB {output_path}")
+
+    # Send the trimmed file back (optional)
+    return jsonify({"message": "Video trimmed successfully", "output": output_path})
