@@ -1,35 +1,17 @@
-from flask import Flask, request, jsonify, send_file
-import subprocess
+from flask import Flask
 import os
 
 app = Flask(__name__)
 
-@app.route("/", methods=["GET"])
+@app.route("/")
 def home():
-    return jsonify({
-        "message": "Welcome to the FFmpeg Silence Trimmer API!",
-        "usage": "POST a video file to /trim using the 'file' field in form-data."
-    })
+    return "Service is up!"
 
-@app.route("/trim", methods=["POST"])
-def trim_video():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file provided"}), 400
+# Optional: your other API routes here
+# @app.route("/process", methods=["POST"])
+# def process():
+#     ...
 
-    file = request.files['file']
-    input_path = "input.mp4"
-    output_path = "output_trimmed.mp4"
-    
-    file.save(input_path)
-
-    command = [
-        "ffmpeg", "-i", input_path,
-        "-af", "silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-40dB",
-        "-y", output_path
-    ]
-
-    try:
-        subprocess.run(command, check=True)
-        return send_file(output_path, mimetype='video/mp4', as_attachment=True)
-    except subprocess.CalledProcessError as e:
-        return jsonify({"error": str(e)}), 500
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
