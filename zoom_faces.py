@@ -1,35 +1,56 @@
-import sys
 import cv2
 import os
+import shutil
 
 def zoom_on_faces(input_path, output_path):
-    cap = cv2.VideoCapture(input_path)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    cap = cv2.VideoCapture(input_path)
+
+    if not cap.isOpened():
+        print("Error opening video")
+        return False
+
+    has_face = False
+    frames = []
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-
+        faces = face_cascade.detectMultiScale(frame, 1.3, 5)
         if len(faces) > 0:
-            (x, y, w, h) = faces[0]
-            zoom = frame[y:y+h, x:x+w]
-            zoom = cv2.resize(zoom, (width, height))
-            out.write(zoom)
+            has_face = True
+            (x, y, w, h) = faces[0]  # use first face found
+            # expand crop window (optional)
+            margin = 30
+            x = max(x - margin, 0)
+            y = max(y - margin, 0)
+            w = min(w + 2*margin, width - x)
+            h = min(h + 2*margin, height - y)
+
+            cropped = frame[y:y+h, x:x+w]
+            zoomed = cv2.resize(cropped, (width, height))
+            frames.append(zoomed)
         else:
-            out.write(frame)
+            frames.append(frame)
 
     cap.release()
-    out.release()
 
-if __name__ == "__main__":
-    zoom_on_faces(sys.argv[1], sys.argv[2])
+    # If no faces found in entire video, just copy the input as output
+    if not has_face:
+        print("No faces found. Skipping zoom.")
+        shutil.copy(input_path, output_path)
+        return True
+
+    # Write processed video
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+    for f in frames:
+        out.write(f)
+    out.release()
+    return True
