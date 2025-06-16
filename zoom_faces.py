@@ -1,20 +1,16 @@
-import cv2
 import sys
+import cv2
 import os
 
-def zoom_on_face(input_path, output_path):
+def zoom_on_faces(input_path, output_path):
     cap = cv2.VideoCapture(input_path)
-    if not cap.isOpened():
-        print(f"Error opening video file {input_path}")
-        sys.exit(1)
-
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     while True:
         ret, frame = cap.read()
@@ -22,19 +18,13 @@ def zoom_on_face(input_path, output_path):
             break
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
 
         if len(faces) > 0:
-            # Zoom on the largest face
-            x, y, w, h = max(faces, key=lambda rect: rect[2] * rect[3])
-            pad = 100
-            x1 = max(0, x - pad)
-            y1 = max(0, y - pad)
-            x2 = min(width, x + w + pad)
-            y2 = min(height, y + h + pad)
-            zoomed = frame[y1:y2, x1:x2]
-            zoomed = cv2.resize(zoomed, (width, height))
-            out.write(zoomed)
+            (x, y, w, h) = faces[0]
+            zoom = frame[y:y+h, x:x+w]
+            zoom = cv2.resize(zoom, (width, height))
+            out.write(zoom)
         else:
             out.write(frame)
 
@@ -42,8 +32,4 @@ def zoom_on_face(input_path, output_path):
     out.release()
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python zoom_faces.py <input_path> <output_path>")
-        sys.exit(1)
-
-    zoom_on_face(sys.argv[1], sys.argv[2])
+    zoom_on_faces(sys.argv[1], sys.argv[2])
