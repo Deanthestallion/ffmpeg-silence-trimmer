@@ -1,2 +1,5 @@
-flask
+Flask
 gunicorn
+auto-editor
+opencv-python
+face_recognition
